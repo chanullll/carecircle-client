@@ -5,7 +5,7 @@ import API from '../services/api';
 import { formatTime } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { GiMedicines } from 'react-icons/gi';
-import { FiPlus, FiClock, FiPackage, FiCheck, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiPlus, FiClock, FiPackage, FiCheck, FiAlertTriangle, FiX, FiTrash2 } from 'react-icons/fi';
 
 export default function Medicines() {
   const { currentCircle } = useAuth();
@@ -18,9 +18,13 @@ export default function Medicines() {
   const [checkingInteractions, setCheckingInteractions] = useState(false);
   const [activeTab, setActiveTab] = useState('today');
   const [form, setForm] = useState({
-    name: '', dosage: '', frequency: 'twice_daily',
-    times: ['08:00', '20:00'], stock: 30,
-    instructions: '', prescribedBy: ''
+    name: '',
+    dosage: '',
+    frequency: 'twice_daily',
+    times: ['08:00', '20:00'],
+    stock: 30,
+    instructions: '',
+    prescribedBy: ''
   });
 
   useEffect(() => {
@@ -43,6 +47,38 @@ export default function Medicines() {
     }
   };
 
+  // Frequency change වෙද්දී default times set කරනවා
+  const handleFrequencyChange = (freq) => {
+    const defaultTimes = {
+      once_daily: ['08:00'],
+      twice_daily: ['08:00', '20:00'],
+      thrice_daily: ['08:00', '14:00', '20:00'],
+      four_times_daily: ['08:00', '12:00', '16:00', '20:00'],
+      as_needed: []
+    };
+    setForm({ ...form, frequency: freq, times: defaultTimes[freq] || [] });
+  };
+
+  // Time update කරනවා
+  const updateTime = (index, value) => {
+    const newTimes = [...form.times];
+    newTimes[index] = value;
+    setForm({ ...form, times: newTimes });
+  };
+
+  // Time add කරනවා
+  const addTime = () => {
+    if (form.times.length < 6) {
+      setForm({ ...form, times: [...form.times, '12:00'] });
+    }
+  };
+
+  // Time remove කරනවා
+  const removeTime = (index) => {
+    const newTimes = form.times.filter((_, i) => i !== index);
+    setForm({ ...form, times: newTimes });
+  };
+
   const checkInteractions = async () => {
     setCheckingInteractions(true);
     setShowInteractions(true);
@@ -58,9 +94,13 @@ export default function Medicines() {
 
   const handleAddMedicine = async (e) => {
     e.preventDefault();
+    if (form.times.length === 0 && form.frequency !== 'as_needed') {
+      toast.error('Please add at least one time!');
+      return;
+    }
     try {
       await addMedicine({ ...form, circleId: currentCircle._id });
-      toast.success('Medicine added!');
+      toast.success('Medicine added! 💊');
       setShowAddForm(false);
       setForm({
         name: '', dosage: '', frequency: 'twice_daily',
@@ -95,12 +135,6 @@ export default function Medicines() {
     return 'bg-yellow-50 border-yellow-300 text-yellow-800';
   };
 
-  const getSeverityIcon = (severity) => {
-    if (severity === 'high') return '🚨';
-    if (severity === 'medium') return '⚠️';
-    return '💡';
-  };
-
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -108,88 +142,112 @@ export default function Medicines() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <GiMedicines className="text-blue-500" /> Medicines
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <div className="w-9 h-9 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+              <GiMedicines className="text-purple-500" />
+            </div>
+            Medicines
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Manage and track medications
+          </p>
+        </div>
         <div className="flex gap-2">
           <button onClick={checkInteractions}
-            className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">
-            <FiAlertTriangle /> Check Interactions
+            className="flex items-center gap-2 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 px-4 py-2 rounded-xl hover:bg-orange-100 transition-all text-sm font-medium">
+            <FiAlertTriangle size={16} /> Check Interactions
           </button>
           <button onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            <FiPlus /> Add Medicine
+            className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-xl hover:from-purple-600 hover:to-purple-700 shadow-md hover:shadow-lg transition-all text-sm font-medium">
+            <FiPlus size={16} /> Add Medicine
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
-        {['today', 'all'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+        {[
+          { key: 'today', label: "📅 Today's Status" },
+          { key: 'all', label: '💊 All Medicines' }
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              activeTab === tab.key
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
             }`}>
-            {tab === 'today' ? "📅 Today's Status" : '💊 All Medicines'}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Today's Status Tab */}
+      {/* Today's Status */}
       {activeTab === 'today' && (
         <div className="space-y-4">
           {todayStatus.length === 0 ? (
-            <div className="bg-white rounded-xl shadow p-12 text-center">
-              <p className="text-4xl mb-4">💊</p>
-              <p className="text-gray-500 text-lg">No medicines scheduled for today</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+              <span className="text-5xl">💊</span>
+              <p className="text-gray-500 dark:text-gray-400 mt-3 mb-4">No medicines scheduled for today</p>
               <button onClick={() => setShowAddForm(true)}
-                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                className="bg-purple-600 text-white px-6 py-2 rounded-xl hover:bg-purple-700 text-sm font-medium">
                 + Add Medicine
               </button>
             </div>
           ) : (
             todayStatus.map((item, i) => (
-              <div key={i} className="bg-white rounded-xl shadow p-5 border border-gray-100">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-800">{item.medicine.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {item.medicine.dosage} • {item.medicine.instructions}
-                    </p>
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
+                      <span className="text-2xl">💊</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-800 dark:text-white text-lg">
+                        {item.medicine.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {item.medicine.dosage}
+                        {item.medicine.instructions && ` • ${item.medicine.instructions}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${
-                    item.medicine.stock <= 5 ? 'text-red-600' : 'text-green-600'
+                  <div className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl ${
+                    item.medicine.stock <= 5
+                      ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                      : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                   }`}>
-                    <FiPackage />
-                    <span>Stock: {item.medicine.stock}</span>
-                    {item.medicine.stock <= 5 && <span>⚠️ Low!</span>}
+                    <FiPackage size={14} />
+                    <span>{item.medicine.stock} left</span>
+                    {item.medicine.stock <= 5 && <span>⚠️</span>}
                   </div>
                 </div>
-                <div className="flex gap-3 flex-wrap">
+
+                <div className="flex gap-2 flex-wrap">
                   {item.times.map((t, j) => (
-                    <div key={j} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
-                      t.status === 'given' ? 'bg-green-100 text-green-700' :
-                      t.status === 'missed' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
+                    <div key={j} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      t.status === 'given'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : t.status === 'missed'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                     }`}>
-                      <FiClock />
+                      <FiClock size={14} />
                       <span>{formatTime(t.time)}</span>
                       {t.status === 'given' ? (
-                        <FiCheck />
+                        <FiCheck size={14} />
                       ) : t.status === 'pending' ? (
                         <button
                           onClick={() => handleMarkGiven(item.medicine._id, t.time)}
-                          className="ml-2 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                          className="ml-1 bg-green-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-green-700 font-semibold transition-all">
                           Give ✅
                         </button>
                       ) : null}
                       {t.givenBy && (
-                        <span className="text-xs ml-1 opacity-75">by {t.givenBy}</span>
+                        <span className="text-xs opacity-75">by {t.givenBy}</span>
                       )}
                     </div>
                   ))}
@@ -200,48 +258,59 @@ export default function Medicines() {
         </div>
       )}
 
-      {/* All Medicines Tab */}
+      {/* All Medicines */}
       {activeTab === 'all' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {medicines.length === 0 ? (
-            <div className="col-span-2 bg-white rounded-xl shadow p-12 text-center">
-              <p className="text-4xl mb-4">💊</p>
-              <p className="text-gray-500">No medicines added yet</p>
+            <div className="col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+              <span className="text-5xl">💊</span>
+              <p className="text-gray-500 dark:text-gray-400 mt-3">No medicines added yet</p>
             </div>
           ) : (
             medicines.map(med => (
-              <div key={med._id} className="bg-white rounded-xl shadow p-5 border border-gray-100">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-800">{med.name}</h3>
-                    <p className="text-gray-500 text-sm">{med.dosage}</p>
-                    <p className="text-gray-400 text-sm">
-                      {med.frequency.replace('_', ' ')}
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">
-                      ⏰ {med.times.map(t => formatTime(t)).join(', ')}
-                    </p>
-                    {med.prescribedBy && (
-                      <p className="text-gray-400 text-sm">👨‍⚕️ {med.prescribedBy}</p>
-                    )}
+              <div key={med._id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                      <span className="text-xl">💊</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-800 dark:text-white">{med.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{med.dosage}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`text-sm font-bold ${
-                      med.stock <= 5 ? 'text-red-600' : 'text-green-600'
-                    }`}>
-                      📦 {med.stock} left
-                    </span>
-                    {med.stock <= 5 && (
-                      <p className="text-xs text-red-500 mt-1">⚠️ Reorder soon!</p>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    med.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                    med.isActive
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
                   }`}>
-                    {med.isActive ? '✅ Active' : '❌ Inactive'}
+                    {med.isActive ? '✅ Active' : 'Inactive'}
                   </span>
+                </div>
+
+                <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                  <p>🔄 {med.frequency.replace(/_/g, ' ')}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {med.times.map((t, i) => (
+                      <span key={i} className="bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2.5 py-1 rounded-lg text-xs font-medium">
+                        ⏰ {formatTime(t)}
+                      </span>
+                    ))}
+                  </div>
+                  {med.prescribedBy && <p>👨‍⚕️ {med.prescribedBy}</p>}
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                  <span className={`text-sm font-bold ${
+                    med.stock <= 5 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                  }`}>
+                    📦 {med.stock} tablets left
+                  </span>
+                  {med.stock <= 5 && (
+                    <span className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg">
+                      ⚠️ Reorder soon!
+                    </span>
+                  )}
                 </div>
               </div>
             ))
@@ -251,114 +320,85 @@ export default function Medicines() {
 
       {/* Interaction Checker Modal */}
       {showInteractions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                 <FiAlertTriangle className="text-orange-500" />
-                Medicine Interaction Check
+                Interaction Check
               </h2>
-              <button onClick={() => setShowInteractions(false)}>
-                <FiX size={24} />
+              <button onClick={() => setShowInteractions(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700">
+                <FiX size={20} />
               </button>
             </div>
 
             {checkingInteractions ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
-                <p className="text-gray-500">🤖 AI checking interactions...</p>
+                <p className="text-gray-500 dark:text-gray-400">🤖 AI checking interactions...</p>
               </div>
             ) : interactions ? (
               <div className="space-y-4">
-                {/* Summary */}
                 <div className={`p-4 rounded-xl ${
                   interactions.totalWarnings === 0
-                    ? 'bg-green-50 border border-green-200'
-                    : 'bg-red-50 border border-red-200'
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
                 }`}>
                   <p className={`font-bold text-lg ${
-                    interactions.totalWarnings === 0 ? 'text-green-700' : 'text-red-700'
+                    interactions.totalWarnings === 0
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-red-700 dark:text-red-400'
                   }`}>
                     {interactions.totalWarnings === 0
-                      ? '✅ No dangerous interactions found!'
-                      : `⚠️ ${interactions.totalWarnings} interaction(s) found!`
-                    }
+                      ? '✅ No dangerous interactions!'
+                      : `⚠️ ${interactions.totalWarnings} interaction(s) found!`}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Checked {interactions.medicinesChecked?.length || 0} medicines
                   </p>
                 </div>
 
-                {/* Drug-Drug Interactions */}
                 {interactions.drugInteractions?.length > 0 && (
                   <div>
-                    <h3 className="font-bold text-gray-800 mb-3">🔴 Drug Interactions:</h3>
+                    <h3 className="font-bold text-gray-800 dark:text-white mb-3">🔴 Drug Interactions:</h3>
                     <div className="space-y-3">
                       {interactions.drugInteractions.map((interaction, i) => (
                         <div key={i} className={`p-4 rounded-xl border ${getSeverityColor(interaction.severity)}`}>
-                          <div className="flex items-start gap-2">
-                            <span className="text-xl">{getSeverityIcon(interaction.severity)}</span>
-                            <div>
-                              <p className="font-bold">
-                                {interaction.medicines?.join(' + ')}
-                              </p>
-                              <p className="text-sm mt-1">{interaction.effect}</p>
-                              {interaction.sinhala && (
-                                <p className="text-sm mt-1 font-medium">{interaction.sinhala}</p>
-                              )}
-                              <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-bold ${
-                                interaction.severity === 'high' ? 'bg-red-200 text-red-800' :
-                                interaction.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
-                                'bg-yellow-200 text-yellow-800'
-                              }`}>
-                                {interaction.severity.toUpperCase()} RISK
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Food Interactions */}
-                {interactions.foodInteractions?.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-gray-800 mb-3">🍎 Food Interactions:</h3>
-                    <div className="space-y-3">
-                      {interactions.foodInteractions.map((fi, i) => (
-                        <div key={i} className="p-4 rounded-xl border bg-blue-50 border-blue-200">
-                          <p className="font-bold text-blue-800">
-                            💊 {fi.medicine} + 🍎 {fi.food}
-                          </p>
-                          <p className="text-sm text-blue-700 mt-1">{fi.effect}</p>
-                          {fi.sinhala && (
-                            <p className="text-sm text-blue-600 mt-1">{fi.sinhala}</p>
+                          <p className="font-bold">{interaction.medicines?.join(' + ')}</p>
+                          <p className="text-sm mt-1">{interaction.effect}</p>
+                          {interaction.sinhala && (
+                            <p className="text-sm mt-1 font-medium">{interaction.sinhala}</p>
                           )}
+                          <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                            interaction.severity === 'high' ? 'bg-red-200 text-red-800' :
+                            interaction.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
+                            'bg-yellow-200 text-yellow-800'
+                          }`}>
+                            {interaction.severity.toUpperCase()} RISK
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Timing Advice */}
                 {interactions.timingAdvice?.length > 0 && (
                   <div>
-                    <h3 className="font-bold text-gray-800 mb-3">⏰ Timing Advice:</h3>
+                    <h3 className="font-bold text-gray-800 dark:text-white mb-3">⏰ Timing Advice:</h3>
                     <div className="space-y-2">
                       {interactions.timingAdvice.map((advice, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-purple-50 border border-purple-200">
-                          <p className="font-medium text-purple-800">💊 {advice.medicine}</p>
-                          <p className="text-sm text-purple-600 mt-1">{advice.sinhala}</p>
+                        <div key={i} className="p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                          <p className="font-medium text-purple-800 dark:text-purple-300">💊 {advice.medicine}</p>
+                          <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">{advice.sinhala}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <button
-                  onClick={() => setShowInteractions(false)}
-                  className="w-full bg-gray-800 text-white py-3 rounded-xl font-medium hover:bg-gray-900">
+                <button onClick={() => setShowInteractions(false)}
+                  className="w-full bg-gray-800 dark:bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-900 transition-all">
                   Close
                 </button>
               </div>
@@ -369,47 +409,157 @@ export default function Medicines() {
 
       {/* Add Medicine Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Add Medicine</h2>
-              <button onClick={() => setShowAddForm(false)}><FiX size={24} /></button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">💊 Add Medicine</h2>
+              <button onClick={() => setShowAddForm(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700">
+                <FiX size={20} />
+              </button>
             </div>
+
             <form onSubmit={handleAddMedicine} className="space-y-4">
-              {[
-                { name: 'name', label: '💊 Medicine Name', placeholder: 'e.g. Metformin', required: true },
-                { name: 'dosage', label: '⚖️ Dosage', placeholder: 'e.g. 500mg', required: true },
-                { name: 'instructions', label: '📝 Instructions', placeholder: 'e.g. After meals' },
-                { name: 'prescribedBy', label: '👨‍⚕️ Prescribed By', placeholder: 'e.g. Dr. Perera' },
-                { name: 'stock', label: '📦 Stock (tablets)', placeholder: '30', type: 'number' },
-              ].map(field => (
-                <div key={field.name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-                  <input
-                    type={field.type || 'text'}
-                    value={form[field.name]}
-                    onChange={e => setForm({
-                      ...form,
-                      [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={field.placeholder}
-                    required={field.required} />
-                </div>
-              ))}
+              {/* Medicine Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">🔄 Frequency</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  💊 Medicine Name *
+                </label>
+                <input type="text" value={form.name}
+                  onChange={e => setForm({...form, name: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g. Metformin" required />
+              </div>
+
+              {/* Dosage */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  ⚖️ Dosage *
+                </label>
+                <input type="text" value={form.dosage}
+                  onChange={e => setForm({...form, dosage: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g. 500mg" required />
+              </div>
+
+              {/* Frequency */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  🔄 Frequency *
+                </label>
                 <select value={form.frequency}
-                  onChange={e => setForm({...form, frequency: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="once_daily">Once Daily</option>
-                  <option value="twice_daily">Twice Daily</option>
-                  <option value="thrice_daily">Three Times Daily</option>
+                  onChange={e => handleFrequencyChange(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white">
+                  <option value="once_daily">Once Daily (1x)</option>
+                  <option value="twice_daily">Twice Daily (2x)</option>
+                  <option value="thrice_daily">Three Times Daily (3x)</option>
+                  <option value="four_times_daily">Four Times Daily (4x)</option>
                   <option value="as_needed">As Needed</option>
                 </select>
               </div>
+
+              {/* Times */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ⏰ Medicine Times
+                  </label>
+                  <button type="button" onClick={addTime}
+                    className="text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-lg hover:bg-purple-100 flex items-center gap-1">
+                    <FiPlus size={12} /> Add Time
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {form.times.map((time, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-gray-700 rounded-xl px-3 py-2 border border-gray-200 dark:border-gray-600">
+                        <FiClock size={16} className="text-purple-500" />
+                        <input
+                          type="time"
+                          value={time}
+                          onChange={e => updateTime(index, e.target.value)}
+                          className="flex-1 bg-transparent focus:outline-none text-gray-800 dark:text-white font-medium" />
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {/* AM/PM display */}
+                          {(() => {
+                            const [h, m] = time.split(':').map(Number);
+                            const ampm = h >= 12 ? 'PM' : 'AM';
+                            const h12 = h % 12 || 12;
+                            return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+                          })()}
+                        </span>
+                      </div>
+                      {form.times.length > 1 && (
+                        <button type="button" onClick={() => removeTime(index)}
+                          className="w-9 h-9 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
+                          <FiTrash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {form.times.length === 0 && (
+                    <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-2">
+                      No times added (As needed)
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stock */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  📦 Stock (tablets)
+                </label>
+                <input type="number" value={form.stock}
+                  onChange={e => setForm({...form, stock: Number(e.target.value)})}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="30" min="0" />
+              </div>
+
+              {/* Instructions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  📝 Instructions
+                </label>
+                <input type="text" value={form.instructions}
+                  onChange={e => setForm({...form, instructions: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g. After meals, with water" />
+              </div>
+
+              {/* Prescribed By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  👨‍⚕️ Prescribed By
+                </label>
+                <input type="text" value={form.prescribedBy}
+                  onChange={e => setForm({...form, prescribedBy: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g. Dr. Perera" />
+              </div>
+
+              {/* Preview */}
+              {form.name && form.times.length > 0 && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+                  <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">
+                    📋 Preview:
+                  </p>
+                  <p className="text-sm text-purple-600 dark:text-purple-400">
+                    <span className="font-bold">{form.name}</span> {form.dosage} •{' '}
+                    {form.times.map(t => {
+                      const [h, m] = t.split(':').map(Number);
+                      const ampm = h >= 12 ? 'PM' : 'AM';
+                      const h12 = h % 12 || 12;
+                      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+                    }).join(', ')}
+                  </p>
+                </div>
+              )}
+
               <button type="submit"
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-purple-700 shadow-md hover:shadow-lg transition-all">
                 ✅ Add Medicine
               </button>
             </form>

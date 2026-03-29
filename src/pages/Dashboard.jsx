@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTodayStatus } from '../services/medicineService';
 import { getLatestVital, getHealthScore } from '../services/vitalService';
-import { FiActivity, FiAlertCircle, FiPlus, FiClock } from 'react-icons/fi';
+import { FiActivity, FiAlertCircle, FiPlus, FiClock, FiArrowRight } from 'react-icons/fi';
 import { GiMedicines } from 'react-icons/gi';
 import { formatTime } from '../utils/helpers';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,6 @@ export default function Dashboard() {
     if (currentCircle?._id) loadDashboard();
   }, [currentCircle]);
 
-  // Countdown timer
   useEffect(() => {
     if (!nextMedicine) return;
     const interval = setInterval(() => {
@@ -60,7 +59,6 @@ export default function Dashboard() {
       });
       setStats({ given, pending, missed });
 
-      // Find next pending medicine
       if (pendingMeds.length > 0) {
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -94,10 +92,12 @@ export default function Dashboard() {
   if (!currentCircle) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <span className="text-6xl">👨‍👩‍👧‍👦</span>
-        <p className="text-gray-500 text-lg">No family circle found!</p>
+        <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center">
+          <span className="text-4xl">👨‍👩‍👧‍👦</span>
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No family circle found!</p>
         <button onClick={() => navigate('/setup')}
-          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2">
+          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2 shadow-md hover:shadow-lg transition-all">
           <FiPlus /> Create Family Circle
         </button>
       </div>
@@ -111,91 +111,105 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Welcome, {user?.name}! 👋</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]}! 👋
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             {new Date().toLocaleDateString('en-LK', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             })}
           </p>
-          <p className="text-blue-600 font-medium mt-1">
-            🏠 {currentCircle.name} - Patient: {currentCircle.patient?.name}
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-medium">
+              🏠 {currentCircle.name}
+            </span>
+            <span className="inline-flex items-center gap-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full text-sm font-medium">
+              👤 {currentCircle.patient?.name}
+            </span>
+          </div>
         </div>
         <button onClick={() => navigate('/emergency')}
-          className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-red-700 animate-pulse">
+          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all animate-pulse flex items-center gap-2">
           🆘 SOS
         </button>
       </div>
 
       {/* Next Medicine Reminder */}
       {nextMedicine && (
-        <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-r from-violet-500 via-purple-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-purple-200 text-sm flex items-center gap-2">
-                <FiClock /> Next Medicine
-              </p>
-              <p className="text-2xl font-bold mt-1">💊 {nextMedicine.name}</p>
-              <p className="text-purple-200 mt-1">
+              <div className="flex items-center gap-2 mb-1">
+                <FiClock size={16} className="text-purple-200" />
+                <p className="text-purple-200 text-sm font-medium">Next Medicine</p>
+              </div>
+              <p className="text-2xl font-bold">💊 {nextMedicine.name}</p>
+              <p className="text-purple-200 text-sm mt-1">
                 Scheduled at {formatTime(nextMedicine.time)}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-purple-200 text-sm">Time remaining</p>
-              <p className="text-3xl font-bold font-mono mt-1">{countdown}</p>
+            <div className="text-right bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <p className="text-purple-200 text-xs mb-1">Time remaining</p>
+              <p className="text-2xl font-bold font-mono">{countdown}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <p className="text-green-600 text-sm font-medium">✅ Given</p>
-          <p className="text-3xl font-bold text-green-700">{stats.given}</p>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-yellow-600 text-sm font-medium">⏳ Pending</p>
-          <p className="text-3xl font-bold text-yellow-700">{stats.pending}</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-600 text-sm font-medium">❌ Missed</p>
-          <p className="text-3xl font-bold text-red-700">{stats.missed}</p>
-        </div>
-        {healthScore && (
-          <div className={`border rounded-xl p-4 ${
-            healthScore.healthScore >= 80 ? 'bg-green-50 border-green-200' :
-            healthScore.healthScore >= 60 ? 'bg-yellow-50 border-yellow-200' :
-            'bg-red-50 border-red-200'
-          }`}>
-            <p className="text-sm font-medium text-gray-600">🤖 Health Score</p>
-            <p className={`text-3xl font-bold ${
-              healthScore.healthScore >= 80 ? 'text-green-700' :
-              healthScore.healthScore >= 60 ? 'text-yellow-700' : 'text-red-700'
-            }`}>{healthScore.healthScore}</p>
-            <p className="text-xs text-gray-500">{healthScore.grade}</p>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Given', value: stats.given, icon: '✅', color: 'from-green-400 to-green-600', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400' },
+          { label: 'Pending', value: stats.pending, icon: '⏳', color: 'from-yellow-400 to-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600 dark:text-yellow-400' },
+          { label: 'Missed', value: stats.missed, icon: '❌', color: 'from-red-400 to-red-600', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
+          healthScore ? {
+            label: 'Health Score', value: healthScore.healthScore, icon: '🤖',
+            color: healthScore.healthScore >= 80 ? 'from-blue-400 to-blue-600' : 'from-yellow-400 to-orange-500',
+            bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400',
+            sub: healthScore.grade
+          } : null
+        ].filter(Boolean).map((stat, i) => (
+          <div key={i} className={`${stat.bg} rounded-2xl p-5 border border-white/50 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-all`}>
+            <div className="flex justify-between items-start mb-3">
+              <span className="text-2xl">{stat.icon}</span>
+              <span className={`text-xs font-medium ${stat.text} bg-white/60 dark:bg-gray-800/60 px-2 py-0.5 rounded-full`}>
+                {stat.label}
+              </span>
+            </div>
+            <p className={`text-4xl font-bold ${stat.text}`}>{stat.value}</p>
+            {stat.sub && <p className={`text-xs ${stat.text} mt-1 opacity-75`}>{stat.sub}</p>}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Health Alerts */}
       {healthScore?.risks?.length > 0 && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FiAlertCircle className="text-red-500" /> AI Health Alerts
-          </h2>
-          <div className="space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                <FiAlertCircle className="text-red-500" />
+              </div>
+              AI Health Alerts
+            </h2>
+            <button onClick={() => navigate('/vitals')}
+              className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline">
+              View Details <FiArrowRight size={14} />
+            </button>
+          </div>
+          <div className="space-y-2">
             {healthScore.risks.map((risk, i) => (
-              <div key={i} className={`p-3 rounded-lg border ${
-                risk.severity === 'critical' ? 'bg-red-50 border-red-200' :
-                risk.severity === 'high' ? 'bg-orange-50 border-orange-200' :
-                'bg-yellow-50 border-yellow-200'
+              <div key={i} className={`flex items-center gap-3 p-3 rounded-xl ${
+                risk.severity === 'critical' ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' :
+                risk.severity === 'high' ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800' :
+                'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
               }`}>
-                <p className="font-medium text-sm">{risk.message}</p>
+                <span>{risk.severity === 'critical' ? '🚨' : risk.severity === 'high' ? '⚠️' : '💡'}</span>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{risk.message}</p>
               </div>
             ))}
           </div>
@@ -203,50 +217,72 @@ export default function Dashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: 'Add Medicine', icon: '💊', path: '/medicines', color: 'bg-blue-50 hover:bg-blue-100 text-blue-700' },
-          { label: 'Record Vitals', icon: '📊', path: '/vitals', color: 'bg-green-50 hover:bg-green-100 text-green-700' },
-          { label: 'Appointment', icon: '📅', path: '/appointments', color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
-          { label: 'Add Expense', icon: '💰', path: '/expenses', color: 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700' },
-        ].map((action, i) => (
-          <button key={i} onClick={() => navigate(action.path)}
-            className={`p-4 rounded-xl font-medium text-sm ${action.color} transition-colors`}>
-            <span className="text-2xl block mb-1">{action.icon}</span>
-            {action.label}
-          </button>
-        ))}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Add Medicine', icon: '💊', path: '/medicines', gradient: 'from-blue-500 to-blue-600' },
+            { label: 'Record Vitals', icon: '📊', path: '/vitals', gradient: 'from-green-500 to-green-600' },
+            { label: 'Appointment', icon: '📅', path: '/appointments', gradient: 'from-purple-500 to-purple-600' },
+            { label: 'Add Expense', icon: '💰', path: '/expenses', gradient: 'from-yellow-500 to-orange-500' },
+          ].map((action, i) => (
+            <button key={i} onClick={() => navigate(action.path)}
+              className={`bg-gradient-to-br ${action.gradient} p-4 rounded-2xl text-white font-medium text-sm shadow-md hover:shadow-lg hover:scale-105 transition-all`}>
+              <span className="text-3xl block mb-2">{action.icon}</span>
+              {action.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Today's Medicines */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <GiMedicines className="text-blue-500" /> Today's Medicines
-        </h2>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+              <GiMedicines className="text-blue-500" />
+            </div>
+            Today's Medicines
+          </h2>
+          <button onClick={() => navigate('/medicines')}
+            className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline">
+            View All <FiArrowRight size={14} />
+          </button>
+        </div>
+
         {todayMeds.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">No medicines scheduled</p>
+            <span className="text-4xl">💊</span>
+            <p className="text-gray-400 dark:text-gray-500 mt-2 mb-4">No medicines scheduled</p>
             <button onClick={() => navigate('/medicines')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+              className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-medium">
               + Add Medicine
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {todayMeds.map((item, i) => (
-              <div key={i} className="border border-gray-100 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-800">{item.medicine.name}</h3>
-                <p className="text-sm text-gray-500">{item.medicine.dosage}</p>
-                <div className="flex gap-3 flex-wrap mt-2">
+              <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                    <span className="text-xl">💊</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-white">{item.medicine.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{item.medicine.dosage}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
                   {item.times.map((t, j) => (
-                    <div key={j} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
-                      t.status === 'given' ? 'bg-green-100 text-green-700' :
-                      t.status === 'missed' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
+                    <span key={j} className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold ${
+                      t.status === 'given' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                      t.status === 'missed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                      'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                     }`}>
-                      <span>{formatTime(t.time)}</span>
-                      <span>{t.status === 'given' ? '✅' : t.status === 'missed' ? '❌' : '⏳'}</span>
-                    </div>
+                      {formatTime(t.time)} {t.status === 'given' ? '✅' : t.status === 'missed' ? '❌' : '⏳'}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -257,39 +293,39 @@ export default function Dashboard() {
 
       {/* Latest Vitals */}
       {latestVital && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FiActivity className="text-blue-500" /> Latest Vitals
-          </h2>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <FiActivity className="text-green-500" />
+              </div>
+              Latest Vitals
+            </h2>
+            <button onClick={() => navigate('/vitals')}
+              className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline">
+              View All <FiArrowRight size={14} />
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {latestVital.bloodPressure && (
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl">❤️</p>
-                <p className="text-xs text-gray-500 mt-1">Blood Pressure</p>
-                <p className="font-bold">{latestVital.bloodPressure.systolic}/{latestVital.bloodPressure.diastolic}</p>
+            {[
+              { label: 'Blood Pressure', value: latestVital.bloodPressure ? `${latestVital.bloodPressure.systolic}/${latestVital.bloodPressure.diastolic}` : null, unit: 'mmHg', icon: '❤️', alert: latestVital.bloodPressure?.systolic > 140 },
+              { label: 'Blood Sugar', value: latestVital.bloodSugar, unit: 'mg/dL', icon: '🩸', alert: latestVital.bloodSugar > 180 },
+              { label: 'Oxygen Level', value: latestVital.oxygenLevel ? `${latestVital.oxygenLevel}%` : null, unit: '', icon: '💨', alert: latestVital.oxygenLevel < 92 },
+              { label: 'Temperature', value: latestVital.temperature ? `${latestVital.temperature}°F` : null, unit: '', icon: '🌡️', alert: latestVital.temperature > 100.4 },
+            ].filter(v => v.value).map((vital, i) => (
+              <div key={i} className={`rounded-2xl p-4 text-center ${
+                vital.alert
+                  ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  : 'bg-gray-50 dark:bg-gray-700/50'
+              }`}>
+                <span className="text-2xl">{vital.icon}</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{vital.label}</p>
+                <p className={`font-bold text-lg mt-1 ${vital.alert ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>
+                  {vital.value}
+                </p>
+                {vital.alert && <p className="text-xs text-red-500 mt-1">⚠️ High</p>}
               </div>
-            )}
-            {latestVital.bloodSugar && (
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl">🩸</p>
-                <p className="text-xs text-gray-500 mt-1">Blood Sugar</p>
-                <p className="font-bold">{latestVital.bloodSugar} mg/dL</p>
-              </div>
-            )}
-            {latestVital.oxygenLevel && (
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl">💨</p>
-                <p className="text-xs text-gray-500 mt-1">Oxygen</p>
-                <p className="font-bold">{latestVital.oxygenLevel}%</p>
-              </div>
-            )}
-            {latestVital.temperature && (
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl">🌡️</p>
-                <p className="text-xs text-gray-500 mt-1">Temperature</p>
-                <p className="font-bold">{latestVital.temperature}°F</p>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       )}

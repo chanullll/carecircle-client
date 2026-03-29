@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getMedicines, addMedicine, markGiven, getTodayStatus } from '../services/medicineService';
 import API from '../services/api';
 import { formatTime } from '../utils/helpers';
+import { searchMedicines } from '../data/medicines';
 import toast from 'react-hot-toast';
 import { GiMedicines } from 'react-icons/gi';
-import { FiPlus, FiClock, FiPackage, FiCheck, FiAlertTriangle, FiX, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiClock, FiPackage, FiCheck, FiAlertTriangle, FiX, FiTrash2, FiSearch } from 'react-icons/fi';
 
 export default function Medicines() {
   const { currentCircle } = useAuth();
@@ -17,6 +18,10 @@ export default function Medicines() {
   const [loading, setLoading] = useState(true);
   const [checkingInteractions, setCheckingInteractions] = useState(false);
   const [activeTab, setActiveTab] = useState('today');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const searchRef = useRef(null);
+
   const [form, setForm] = useState({
     name: '',
     dosage: '',
@@ -24,7 +29,9 @@ export default function Medicines() {
     times: ['08:00', '20:00'],
     stock: 30,
     instructions: '',
-    prescribedBy: ''
+    prescribedBy: '',
+    emoji: '💊',
+    category: ''
   });
 
   useEffect(() => {
@@ -47,7 +54,33 @@ export default function Medicines() {
     }
   };
 
-  // Frequency change වෙද්දී default times set කරනවා
+  // Medicine search
+  const handleNameSearch = (value) => {
+    setForm({ ...form, name: value });
+    if (value.length >= 2) {
+      const results = searchMedicines(value);
+      setSearchResults(results);
+      setShowSearch(results.length > 0);
+    } else {
+      setSearchResults([]);
+      setShowSearch(false);
+    }
+  };
+
+  // Medicine select from search
+  const selectMedicine = (med) => {
+    setForm({
+      ...form,
+      name: med.name,
+      dosage: med.dosages[0],
+      instructions: med.instructions,
+      emoji: med.emoji,
+      category: med.category
+    });
+    setShowSearch(false);
+    setSearchResults([]);
+  };
+
   const handleFrequencyChange = (freq) => {
     const defaultTimes = {
       once_daily: ['08:00'],
@@ -59,21 +92,18 @@ export default function Medicines() {
     setForm({ ...form, frequency: freq, times: defaultTimes[freq] || [] });
   };
 
-  // Time update කරනවා
   const updateTime = (index, value) => {
     const newTimes = [...form.times];
     newTimes[index] = value;
     setForm({ ...form, times: newTimes });
   };
 
-  // Time add කරනවා
   const addTime = () => {
     if (form.times.length < 6) {
       setForm({ ...form, times: [...form.times, '12:00'] });
     }
   };
 
-  // Time remove කරනවා
   const removeTime = (index) => {
     const newTimes = form.times.filter((_, i) => i !== index);
     setForm({ ...form, times: newTimes });
@@ -105,7 +135,7 @@ export default function Medicines() {
       setForm({
         name: '', dosage: '', frequency: 'twice_daily',
         times: ['08:00', '20:00'], stock: 30,
-        instructions: '', prescribedBy: ''
+        instructions: '', prescribedBy: '', emoji: '💊', category: ''
       });
       loadData();
     } catch (error) {
@@ -129,10 +159,20 @@ export default function Medicines() {
     }
   };
 
-  const getSeverityColor = (severity) => {
-    if (severity === 'high') return 'bg-red-50 border-red-300 text-red-800';
-    if (severity === 'medium') return 'bg-orange-50 border-orange-300 text-orange-800';
-    return 'bg-yellow-50 border-yellow-300 text-yellow-800';
+  const getCategoryColor = (category) => {
+    const colors = {
+      'Diabetes': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+      'Blood Pressure': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+      'Cholesterol': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+      'Pain Relief': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+      'Antibiotic': 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+      'Heart': 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300',
+      'Stomach': 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+      'Thyroid': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+      'Respiratory': 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300',
+      'Supplement': 'bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-300',
+    };
+    return colors[category] || 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
   };
 
   if (loading) return (
@@ -191,7 +231,9 @@ export default function Medicines() {
           {todayStatus.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
               <span className="text-5xl">💊</span>
-              <p className="text-gray-500 dark:text-gray-400 mt-3 mb-4">No medicines scheduled for today</p>
+              <p className="text-gray-500 dark:text-gray-400 mt-3 mb-4">
+                No medicines scheduled for today
+              </p>
               <button onClick={() => setShowAddForm(true)}
                 className="bg-purple-600 text-white px-6 py-2 rounded-xl hover:bg-purple-700 text-sm font-medium">
                 + Add Medicine
@@ -202,8 +244,8 @@ export default function Medicines() {
               <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center">
-                      <span className="text-2xl">💊</span>
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-2xl">
+                      💊
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-800 dark:text-white text-lg">
@@ -225,7 +267,6 @@ export default function Medicines() {
                     {item.medicine.stock <= 5 && <span>⚠️</span>}
                   </div>
                 </div>
-
                 <div className="flex gap-2 flex-wrap">
                   {item.times.map((t, j) => (
                     <div key={j} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -271,8 +312,8 @@ export default function Medicines() {
               <div key={med._id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-all">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                      <span className="text-xl">💊</span>
+                    <div className="w-11 h-11 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center text-xl">
+                      💊
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-800 dark:text-white">{med.name}</h3>
@@ -298,6 +339,7 @@ export default function Medicines() {
                     ))}
                   </div>
                   {med.prescribedBy && <p>👨‍⚕️ {med.prescribedBy}</p>}
+                  {med.instructions && <p>📝 {med.instructions}</p>}
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
@@ -342,8 +384,8 @@ export default function Medicines() {
               <div className="space-y-4">
                 <div className={`p-4 rounded-xl ${
                   interactions.totalWarnings === 0
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200'
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200'
                 }`}>
                   <p className={`font-bold text-lg ${
                     interactions.totalWarnings === 0
@@ -354,51 +396,22 @@ export default function Medicines() {
                       ? '✅ No dangerous interactions!'
                       : `⚠️ ${interactions.totalWarnings} interaction(s) found!`}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Checked {interactions.medicinesChecked?.length || 0} medicines
-                  </p>
                 </div>
 
-                {interactions.drugInteractions?.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-gray-800 dark:text-white mb-3">🔴 Drug Interactions:</h3>
-                    <div className="space-y-3">
-                      {interactions.drugInteractions.map((interaction, i) => (
-                        <div key={i} className={`p-4 rounded-xl border ${getSeverityColor(interaction.severity)}`}>
-                          <p className="font-bold">{interaction.medicines?.join(' + ')}</p>
-                          <p className="text-sm mt-1">{interaction.effect}</p>
-                          {interaction.sinhala && (
-                            <p className="text-sm mt-1 font-medium">{interaction.sinhala}</p>
-                          )}
-                          <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                            interaction.severity === 'high' ? 'bg-red-200 text-red-800' :
-                            interaction.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
-                            'bg-yellow-200 text-yellow-800'
-                          }`}>
-                            {interaction.severity.toUpperCase()} RISK
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                {interactions.drugInteractions?.map((interaction, i) => (
+                  <div key={i} className="p-4 rounded-xl border bg-red-50 dark:bg-red-900/20 border-red-200">
+                    <p className="font-bold text-red-800 dark:text-red-300">
+                      {interaction.medicines?.join(' + ')}
+                    </p>
+                    <p className="text-sm mt-1 text-red-700 dark:text-red-400">{interaction.effect}</p>
+                    {interaction.sinhala && (
+                      <p className="text-sm mt-1 font-medium text-red-600">{interaction.sinhala}</p>
+                    )}
                   </div>
-                )}
-
-                {interactions.timingAdvice?.length > 0 && (
-                  <div>
-                    <h3 className="font-bold text-gray-800 dark:text-white mb-3">⏰ Timing Advice:</h3>
-                    <div className="space-y-2">
-                      {interactions.timingAdvice.map((advice, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                          <p className="font-medium text-purple-800 dark:text-purple-300">💊 {advice.medicine}</p>
-                          <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">{advice.sinhala}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                ))}
 
                 <button onClick={() => setShowInteractions(false)}
-                  className="w-full bg-gray-800 dark:bg-gray-700 text-white py-3 rounded-xl font-medium hover:bg-gray-900 transition-all">
+                  className="w-full bg-gray-800 dark:bg-gray-700 text-white py-3 rounded-xl font-medium">
                   Close
                 </button>
               </div>
@@ -413,23 +426,77 @@ export default function Medicines() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white">💊 Add Medicine</h2>
-              <button onClick={() => setShowAddForm(false)}
+              <button onClick={() => {
+                setShowAddForm(false);
+                setShowSearch(false);
+              }}
                 className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700">
                 <FiX size={20} />
               </button>
             </div>
 
             <form onSubmit={handleAddMedicine} className="space-y-4">
-              {/* Medicine Name */}
-              <div>
+              {/* Medicine Name with Search */}
+              <div className="relative" ref={searchRef}>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   💊 Medicine Name *
                 </label>
-                <input type="text" value={form.name}
-                  onChange={e => setForm({...form, name: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="e.g. Metformin" required />
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => handleNameSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Type medicine name..."
+                    required />
+                </div>
+
+                {/* Search Dropdown */}
+                {showSearch && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+                    {searchResults.map((med, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => selectMedicine(med)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left">
+                        <span className="text-2xl">{med.emoji}</span>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-800 dark:text-white text-sm">
+                            {med.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(med.category)}`}>
+                              {med.category}
+                            </span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                              {med.dosages.join(', ')}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Auto-filled info */}
+              {form.category && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{form.emoji}</span>
+                    <div>
+                      <p className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                        {form.name}
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(form.category)}`}>
+                        {form.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Dosage */}
               <div>
@@ -480,13 +547,10 @@ export default function Medicines() {
                           value={time}
                           onChange={e => updateTime(index, e.target.value)}
                           className="flex-1 bg-transparent focus:outline-none text-gray-800 dark:text-white font-medium" />
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                          {/* AM/PM display */}
+                        <span className="text-xs text-gray-400">
                           {(() => {
                             const [h, m] = time.split(':').map(Number);
-                            const ampm = h >= 12 ? 'PM' : 'AM';
-                            const h12 = h % 12 || 12;
-                            return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+                            return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
                           })()}
                         </span>
                       </div>
@@ -498,12 +562,6 @@ export default function Medicines() {
                       )}
                     </div>
                   ))}
-
-                  {form.times.length === 0 && (
-                    <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-2">
-                      No times added (As needed)
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -526,7 +584,7 @@ export default function Medicines() {
                 <input type="text" value={form.instructions}
                   onChange={e => setForm({...form, instructions: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="e.g. After meals, with water" />
+                  placeholder="e.g. After meals" />
               </div>
 
               {/* Prescribed By */}
@@ -543,18 +601,23 @@ export default function Medicines() {
               {/* Preview */}
               {form.name && form.times.length > 0 && (
                 <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-                  <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">
+                  <p className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">
                     📋 Preview:
                   </p>
-                  <p className="text-sm text-purple-600 dark:text-purple-400">
-                    <span className="font-bold">{form.name}</span> {form.dosage} •{' '}
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                    <span className="font-bold">{form.emoji} {form.name}</span> {form.dosage}
+                  </p>
+                  <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
                     {form.times.map(t => {
                       const [h, m] = t.split(':').map(Number);
-                      const ampm = h >= 12 ? 'PM' : 'AM';
-                      const h12 = h % 12 || 12;
-                      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-                    }).join(', ')}
+                      return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+                    }).join(' • ')}
                   </p>
+                  {form.instructions && (
+                    <p className="text-xs text-purple-400 dark:text-purple-500 mt-1">
+                      📝 {form.instructions}
+                    </p>
+                  )}
                 </div>
               )}
 

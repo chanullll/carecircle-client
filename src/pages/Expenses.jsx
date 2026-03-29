@@ -3,6 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import toast from 'react-hot-toast';
 import { FiDollarSign, FiPlus, FiX } from 'react-icons/fi';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#22c55e', '#6b7280'];
 
 export default function Expenses() {
   const { currentCircle } = useAuth();
@@ -10,6 +13,7 @@ export default function Expenses() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [chartData, setChartData] = useState([]);
   const [form, setForm] = useState({
     category: 'medicine', amount: '', description: '', date: ''
   });
@@ -22,8 +26,18 @@ export default function Expenses() {
   const loadExpenses = async () => {
     try {
       const { data } = await API.get(`/expenses/circle/${currentCircle._id}`);
-      setExpenses(data.data || []);
-      setTotal((data.data || []).reduce((sum, e) => sum + e.amount, 0));
+      const items = data.data || [];
+      setExpenses(items);
+      setTotal(items.reduce((sum, e) => sum + e.amount, 0));
+
+      // Pie chart data
+      const categoryTotals = {};
+      items.forEach(e => {
+        categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+      });
+      setChartData(
+        Object.entries(categoryTotals).map(([name, value]) => ({ name, value }))
+      );
     } catch (error) {
       console.error(error);
     } finally {
@@ -48,6 +62,14 @@ export default function Expenses() {
     }
   };
 
+  const getCategoryIcon = (cat) => {
+    const icons = {
+      medicine: '💊', doctor: '👨‍⚕️', hospital: '🏥',
+      tests: '🧪', equipment: '🦽', other: '📦'
+    };
+    return icons[cat] || '📦';
+  };
+
   const getCategoryColor = (cat) => {
     const colors = {
       medicine: 'bg-blue-100 text-blue-700',
@@ -68,6 +90,7 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <FiDollarSign className="text-blue-500" /> Expenses
@@ -78,43 +101,110 @@ export default function Expenses() {
         </button>
       </div>
 
+      {/* Total Card */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
         <p className="text-blue-100 text-sm">Total Medical Expenses</p>
         <p className="text-4xl font-bold mt-1">Rs. {total.toLocaleString()}</p>
         <p className="text-blue-100 text-sm mt-1">{expenses.length} transactions</p>
       </div>
 
+      {/* Charts & Stats */}
+      {chartData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pie Chart */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">📊 Expense Breakdown</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value">
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `Rs. ${value.toLocaleString()}`} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Category Summary */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">📋 Category Summary</h2>
+            <div className="space-y-3">
+              {chartData
+                .sort((a, b) => b.value - a.value)
+                .map((cat, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{getCategoryIcon(cat.name)}</span>
+                      <div>
+                        <p className="font-medium text-gray-800 capitalize">{cat.name}</p>
+                        <p className="text-xs text-gray-400">
+                          {((cat.value / total) * 100).toFixed(1)}% of total
+                        </p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-gray-800">Rs. {cat.value.toLocaleString()}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense List */}
       {expenses.length === 0 ? (
         <div className="bg-white rounded-xl shadow p-12 text-center">
           <p className="text-4xl mb-4">💰</p>
           <p className="text-gray-500 text-lg">No expenses recorded yet</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {expenses.map((exp, i) => (
-            <div key={i} className="bg-white rounded-xl shadow p-4 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(exp.category)}`}>
-                  {exp.category}
+        <div className="bg-white rounded-xl shadow">
+          <h2 className="text-lg font-bold text-gray-800 p-6 pb-3">📋 Recent Expenses</h2>
+          <div className="divide-y divide-gray-100">
+            {expenses.map((exp, i) => (
+              <div key={i} className="p-4 flex justify-between items-center hover:bg-gray-50">
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">{getCategoryIcon(exp.category)}</span>
+                  <div>
+                    <p className="font-medium text-gray-800">
+                      {exp.description || exp.category}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getCategoryColor(exp.category)}`}>
+                        {exp.category}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(exp.date).toLocaleDateString('en-LK', {
+                          year: 'numeric', month: 'short', day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-800">{exp.description || exp.category}</p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(exp.date).toLocaleDateString('en-LK')}
-                  </p>
-                </div>
+                <p className="font-bold text-gray-800 text-lg">
+                  Rs. {exp.amount.toLocaleString()}
+                </p>
               </div>
-              <p className="font-bold text-gray-800">Rs. {exp.amount.toLocaleString()}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Add Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Add Expense</h2>
+              <h2 className="text-xl font-bold">💰 Add Expense</h2>
               <button onClick={() => setShowForm(false)}><FiX size={24} /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -124,7 +214,9 @@ export default function Expenses() {
                   onChange={e => setForm({...form, category: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {['medicine', 'doctor', 'hospital', 'tests', 'equipment', 'other'].map(c => (
-                    <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    <option key={c} value={c}>
+                      {getCategoryIcon(c)} {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </option>
                   ))}
                 </select>
               </div>

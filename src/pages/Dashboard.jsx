@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTodayStatus } from '../services/medicineService';
 import { getLatestVital, getHealthScore } from '../services/vitalService';
-import { FiActivity, FiAlertCircle, FiPlus } from 'react-icons/fi';
+import { FiActivity, FiAlertCircle, FiPlus, FiClock } from 'react-icons/fi';
 import { GiMedicines } from 'react-icons/gi';
 import { formatTime } from '../utils/helpers';
 import { useNavigate } from 'react-router-dom';
@@ -15,12 +15,30 @@ export default function Dashboard() {
   const [healthScore, setHealthScore] = useState(null);
   const [stats, setStats] = useState({ given: 0, pending: 0, missed: 0 });
   const [loading, setLoading] = useState(false);
+  const [nextMedicine, setNextMedicine] = useState(null);
+  const [countdown, setCountdown] = useState('');
 
   useEffect(() => {
-    if (currentCircle?._id) {
-      loadDashboard();
-    }
+    if (currentCircle?._id) loadDashboard();
   }, [currentCircle]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!nextMedicine) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const [hours, minutes] = nextMedicine.time.split(':').map(Number);
+      const target = new Date();
+      target.setHours(hours, minutes, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+      const diff = target - now;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(`${h}h ${m}m ${s}s`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextMedicine]);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -29,40 +47,56 @@ export default function Dashboard() {
       setTodayMeds(medsData.data || []);
 
       let given = 0, pending = 0, missed = 0;
+      const pendingMeds = [];
       (medsData.data || []).forEach(med => {
         med.times.forEach(t => {
           if (t.status === 'given') given++;
           else if (t.status === 'missed') missed++;
-          else pending++;
+          else {
+            pending++;
+            pendingMeds.push({ name: med.medicine.name, time: t.time });
+          }
         });
       });
       setStats({ given, pending, missed });
 
+      // Find next pending medicine
+      if (pendingMeds.length > 0) {
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const sorted = pendingMeds
+          .map(m => {
+            const [h, min] = m.time.split(':').map(Number);
+            return { ...m, totalMinutes: h * 60 + min };
+          })
+          .sort((a, b) => a.totalMinutes - b.totalMinutes);
+        const next = sorted.find(m => m.totalMinutes > nowMinutes) || sorted[0];
+        setNextMedicine(next);
+      }
+
       try {
         const vitalData = await getLatestVital(currentCircle._id);
         setLatestVital(vitalData.data);
-      } catch (e) { console.log('No vitals yet'); }
+      } catch (e) {}
 
       try {
         const scoreData = await getHealthScore(currentCircle._id);
         setHealthScore(scoreData.data);
-      } catch (e) { console.log('No health score yet'); }
+      } catch (e) {}
 
     } catch (error) {
-      console.error('Dashboard error:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // NO CIRCLE - Show setup button
   if (!currentCircle) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <span className="text-6xl">👨‍👩‍👧‍👦</span>
         <p className="text-gray-500 text-lg">No family circle found!</p>
-        <button
-          onClick={() => navigate('/setup')}
+        <button onClick={() => navigate('/setup')}
           className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2">
           <FiPlus /> Create Family Circle
         </button>
@@ -81,26 +115,45 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Welcome, {user?.name}! 👋
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800">Welcome, {user?.name}! 👋</h1>
           <p className="text-gray-500 mt-1">
             {new Date().toLocaleDateString('en-LK', {
-              weekday: 'long', year: 'numeric',
-              month: 'long', day: 'numeric'
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             })}
           </p>
           <p className="text-blue-600 font-medium mt-1">
             🏠 {currentCircle.name} - Patient: {currentCircle.patient?.name}
           </p>
         </div>
-        <button className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-red-700 animate-pulse">
+        <button onClick={() => navigate('/emergency')}
+          className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:bg-red-700 animate-pulse">
           🆘 SOS
         </button>
       </div>
 
+      {/* Next Medicine Reminder */}
+      {nextMedicine && (
+        <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-purple-200 text-sm flex items-center gap-2">
+                <FiClock /> Next Medicine
+              </p>
+              <p className="text-2xl font-bold mt-1">💊 {nextMedicine.name}</p>
+              <p className="text-purple-200 mt-1">
+                Scheduled at {formatTime(nextMedicine.time)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-purple-200 text-sm">Time remaining</p>
+              <p className="text-3xl font-bold font-mono mt-1">{countdown}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
           <p className="text-green-600 text-sm font-medium">✅ Given</p>
           <p className="text-3xl font-bold text-green-700">{stats.given}</p>
@@ -113,6 +166,20 @@ export default function Dashboard() {
           <p className="text-red-600 text-sm font-medium">❌ Missed</p>
           <p className="text-3xl font-bold text-red-700">{stats.missed}</p>
         </div>
+        {healthScore && (
+          <div className={`border rounded-xl p-4 ${
+            healthScore.healthScore >= 80 ? 'bg-green-50 border-green-200' :
+            healthScore.healthScore >= 60 ? 'bg-yellow-50 border-yellow-200' :
+            'bg-red-50 border-red-200'
+          }`}>
+            <p className="text-sm font-medium text-gray-600">🤖 Health Score</p>
+            <p className={`text-3xl font-bold ${
+              healthScore.healthScore >= 80 ? 'text-green-700' :
+              healthScore.healthScore >= 60 ? 'text-yellow-700' : 'text-red-700'
+            }`}>{healthScore.healthScore}</p>
+            <p className="text-xs text-gray-500">{healthScore.grade}</p>
+          </div>
+        )}
       </div>
 
       {/* Health Alerts */}
@@ -126,13 +193,30 @@ export default function Dashboard() {
               <div key={i} className={`p-3 rounded-lg border ${
                 risk.severity === 'critical' ? 'bg-red-50 border-red-200' :
                 risk.severity === 'high' ? 'bg-orange-50 border-orange-200' :
-                'bg-yellow-50 border-yellow-200'}`}>
+                'bg-yellow-50 border-yellow-200'
+              }`}>
                 <p className="font-medium text-sm">{risk.message}</p>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Add Medicine', icon: '💊', path: '/medicines', color: 'bg-blue-50 hover:bg-blue-100 text-blue-700' },
+          { label: 'Record Vitals', icon: '📊', path: '/vitals', color: 'bg-green-50 hover:bg-green-100 text-green-700' },
+          { label: 'Appointment', icon: '📅', path: '/appointments', color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
+          { label: 'Add Expense', icon: '💰', path: '/expenses', color: 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700' },
+        ].map((action, i) => (
+          <button key={i} onClick={() => navigate(action.path)}
+            className={`p-4 rounded-xl font-medium text-sm ${action.color} transition-colors`}>
+            <span className="text-2xl block mb-1">{action.icon}</span>
+            {action.label}
+          </button>
+        ))}
+      </div>
 
       {/* Today's Medicines */}
       <div className="bg-white rounded-xl shadow p-6">
@@ -141,9 +225,8 @@ export default function Dashboard() {
         </h2>
         {todayMeds.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">No medicines scheduled for today</p>
-            <button
-              onClick={() => navigate('/medicines')}
+            <p className="text-gray-500 mb-4">No medicines scheduled</p>
+            <button onClick={() => navigate('/medicines')}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
               + Add Medicine
             </button>
@@ -159,7 +242,8 @@ export default function Dashboard() {
                     <div key={j} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
                       t.status === 'given' ? 'bg-green-100 text-green-700' :
                       t.status === 'missed' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'}`}>
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
                       <span>{formatTime(t.time)}</span>
                       <span>{t.status === 'given' ? '✅' : t.status === 'missed' ? '❌' : '⏳'}</span>
                     </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +12,8 @@ import Expenses from './pages/Expenses';
 import Schedule from './pages/Schedule';
 import Emergency from './pages/Emergency';
 import CircleSetup from './pages/CircleSetup';
+import Notifications from './pages/Notifications';
+import Settings from './pages/Settings';
 import Navbar from './components/common/Navbar';
 import Sidebar from './components/common/Sidebar';
 import Loading from './components/common/Loading';
@@ -22,14 +25,14 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function AppContent() {
-  const { user, loading, currentCircle } = useAuth();
+  const { user, loading } = useAuth();
   if (loading) return <Loading />;
 
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
       {user ? (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
           <Navbar />
           <div className="flex">
             <Sidebar />
@@ -42,6 +45,8 @@ function AppContent() {
                 <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
                 <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
                 <Route path="/emergency" element={<ProtectedRoute><Emergency /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/setup" element={<ProtectedRoute><CircleSetup /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -61,8 +66,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

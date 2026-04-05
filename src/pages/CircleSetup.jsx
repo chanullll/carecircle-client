@@ -21,7 +21,7 @@ export default function CircleSetup() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await createCircle({
+      const response = await createCircle({
         name: form.name,
         patient: {
           name: form.patientName,
@@ -31,10 +31,17 @@ export default function CircleSetup() {
           bloodType: form.bloodType
         }
       });
-      selectCircle(data.data);
-      toast.success('Family Circle created!');
+      
+      console.log('Circle created response:', response);
+      
+      const circleData = response.data?.data || response.data || response;
+      console.log('Circle data to save:', circleData);
+      
+      selectCircle(circleData);
+      toast.success(`Family Circle created! 🎉 Invite Code: ${circleData.inviteCode}`);
       navigate('/');
     } catch (error) {
+      console.error('Circle creation error:', error);
       toast.error(error.response?.data?.message || 'Failed to create circle');
     } finally {
       setLoading(false);

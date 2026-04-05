@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { loginUser } from '../../services/authService';
+import { getMyCircles } from '../../services/circleService';
 import toast from 'react-hot-toast';
 
 export default function Login() {
@@ -9,7 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, selectCircle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,6 +19,17 @@ export default function Login() {
     try {
       const data = await loginUser(email, password);
       await login(data.data);
+
+      try {
+        const circlesResponse = await getMyCircles();
+        const circles = circlesResponse.data?.data || circlesResponse.data || [];
+        if (circles && circles.length > 0) {
+          selectCircle(circles[0]);
+        }
+      } catch (circleError) {
+        console.log('No circles found:', circleError);
+      }
+
       toast.success(`Welcome back, ${data.data.name}! 👋`);
       navigate('/');
     } catch (error) {
@@ -70,6 +82,13 @@ export default function Login() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPassword ? '🙈' : '👁️'}
                 </button>
+              </div>
+              {/* Forgot Password Link */}
+              <div className="text-right mt-1">
+                <Link to="/forgot-password"
+                  className="text-sm text-blue-600 hover:underline font-medium">
+                  Forgot Password?
+                </Link>
               </div>
             </div>
 

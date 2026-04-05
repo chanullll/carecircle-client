@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 export default function Register() {
   const [form, setForm] = useState({
-    name: '', email: '', password: '', phone: ''
+    name: '', email: '', password: '', phone: '', confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +15,12 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (form.password !== form.confirmPassword) {
+      toast.error('Passwords do not match!');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await registerUser(form);
@@ -82,6 +88,22 @@ export default function Register() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPassword ? '🙈' : '👁️'}
                 </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                🔒 Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.confirmPassword}
+                  onChange={e => setForm({...form, confirmPassword: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
+                  placeholder="Re-enter your password"
+                  minLength={6}
+                  required />
               </div>
             </div>
 

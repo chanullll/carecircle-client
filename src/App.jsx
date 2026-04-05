@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import JoinCircle from './pages/JoinCircle';
 import Dashboard from './pages/Dashboard';
 import Medicines from './pages/Medicines';
 import Vitals from './pages/Vitals';
@@ -48,6 +51,7 @@ function AppContent() {
                 <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/setup" element={<ProtectedRoute><CircleSetup /></ProtectedRoute>} />
+                <Route path="/join-circle" element={<ProtectedRoute><JoinCircle /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             </main>
@@ -57,6 +61,8 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       )}

@@ -10,23 +10,40 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
         const savedCircle = localStorage.getItem('currentCircle');
-        if (savedUser) setUser(JSON.parse(savedUser));
-        if (savedCircle) setCurrentCircle(JSON.parse(savedCircle));
+        
+        if (savedUser && savedUser !== "undefined") {
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) {
+                localStorage.removeItem('user');
+            }
+        }
+        
+        if (savedCircle && savedCircle !== "undefined") {
+            try {
+                setCurrentCircle(JSON.parse(savedCircle));
+            } catch (e) {
+                localStorage.removeItem('currentCircle');
+            }
+        }
+        
         setLoading(false);
     }, []);
 
-    const login = (userData) => {
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', userData.token);
+    const login = (userData, token) => {
+        // වැදගත්: userData ඇතුළේ token එකත් තියෙනවා නම් ඒක අයින් කරලා පිරිසිදු user object එකක් හදනවා
+        const { token: _, ...pureUser } = userData;
+        
+        setUser(pureUser);
+        localStorage.setItem('user', JSON.stringify(pureUser));
+        localStorage.setItem('token', token);
     };
 
     const logout = () => {
         setUser(null);
         setCurrentCircle(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('currentCircle');
+        localStorage.clear();
+        window.location.href = '/login';
     };
 
     const selectCircle = (circle) => {
@@ -37,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     return (
         <AuthContext.Provider value={{
             user, login, logout, loading,
-            currentCircle, selectCircle
+            currentCircle, selectCircle, setUser, setCurrentCircle
         }}>
             {children}
         </AuthContext.Provider>

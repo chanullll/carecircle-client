@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { FiHeart } from 'react-icons/fi'; // Import the icon
 
 export default function Loading() {
   return (
@@ -10,11 +11,12 @@ export default function Loading() {
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
           <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-gray-700"></div>
           <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 dark:border-t-blue-400"></div>
+          {/* EMOJI REMOVED and REPLACED with ICON */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
-            animate={{ rotate: -360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-            <span className="text-3xl">🏥</span>
+            animate={{ scale: [1, 0.8, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
+            <FiHeart className="text-blue-500 dark:text-blue-400" size={36} />
           </motion.div>
         </motion.div>
 

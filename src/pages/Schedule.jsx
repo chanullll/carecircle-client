@@ -1,14 +1,54 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { joinCircle } from '../services/circleService';
 import API from '../services/api';
 import toast from 'react-hot-toast';
-import { FiClock, FiPlus, FiUsers, FiCopy, FiRefreshCw } from 'react-icons/fi';
+import { 
+  FiClock, FiPlus, FiUsers, FiCopy, FiRefreshCw, FiSunrise, 
+  FiSun, FiSunset, FiMoon, FiCpu, FiCalendar, FiAlertTriangle 
+} from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 }
+};
+
+const getShiftDetails = (shift) => {
+  const styles = {
+    morning: {
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      border: 'border-amber-200 dark:border-amber-800',
+      text: 'text-amber-700 dark:text-amber-300',
+      IconComponent: FiSunrise,
+      iconColor: 'text-amber-500',
+      time: '6:00 AM - 12:00 PM'
+    },
+    afternoon: {
+      bg: 'bg-orange-50 dark:bg-orange-900/20',
+      border: 'border-orange-200 dark:border-orange-800',
+      text: 'text-orange-700 dark:text-orange-300',
+      IconComponent: FiSun,
+      iconColor: 'text-orange-500',
+      time: '12:00 PM - 6:00 PM'
+    },
+    evening: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-800',
+      text: 'text-blue-700 dark:text-blue-300',
+      IconComponent: FiSunset,
+      iconColor: 'text-blue-500',
+      time: '6:00 PM - 10:00 PM'
+    },
+    night: {
+      bg: 'bg-indigo-50 dark:bg-indigo-900/20',
+      border: 'border-indigo-200 dark:border-indigo-800',
+      text: 'text-indigo-700 dark:text-indigo-300',
+      IconComponent: FiMoon,
+      iconColor: 'text-indigo-500',
+      time: '10:00 PM - 6:00 AM'
+    }
+  };
+  return styles[shift] || styles.morning;
 };
 
 export default function Schedule() {
@@ -30,12 +70,11 @@ export default function Schedule() {
 
   const loadSchedule = async () => {
     try {
-      const { data } = await API.get(
-        `/schedule/circle/${currentCircle._id}`
-      );
+      const { data } = await API.get(`/schedule/circle/${currentCircle._id}`);
       setSchedule(data.data);
     } catch (error) {
       console.error(error);
+      setSchedule(null);
     } finally {
       setLoading(false);
     }
@@ -50,7 +89,7 @@ export default function Schedule() {
         weekStart: today
       });
       setSchedule(data.data);
-      toast.success('Smart schedule generated! 📅');
+      toast.success('Smart schedule generated!');
     } catch (error) {
       toast.error('Failed to generate schedule');
     } finally {
@@ -60,41 +99,7 @@ export default function Schedule() {
 
   const copyInviteCode = () => {
     navigator.clipboard.writeText(currentCircle.inviteCode);
-    toast.success('Invite code copied! 📋');
-  };
-
-  const getShiftStyle = (shift) => {
-    const styles = {
-      morning: {
-        bg: 'bg-amber-50 dark:bg-amber-900/20',
-        border: 'border-amber-200 dark:border-amber-800',
-        text: 'text-amber-700 dark:text-amber-300',
-        icon: '🌅',
-        time: '6:00 AM - 12:00 PM'
-      },
-      afternoon: {
-        bg: 'bg-orange-50 dark:bg-orange-900/20',
-        border: 'border-orange-200 dark:border-orange-800',
-        text: 'text-orange-700 dark:text-orange-300',
-        icon: '☀️',
-        time: '12:00 PM - 6:00 PM'
-      },
-      evening: {
-        bg: 'bg-blue-50 dark:bg-blue-900/20',
-        border: 'border-blue-200 dark:border-blue-800',
-        text: 'text-blue-700 dark:text-blue-300',
-        icon: '🌆',
-        time: '6:00 PM - 10:00 PM'
-      },
-      night: {
-        bg: 'bg-indigo-50 dark:bg-indigo-900/20',
-        border: 'border-indigo-200 dark:border-indigo-800',
-        text: 'text-indigo-700 dark:text-indigo-300',
-        icon: '🌙',
-        time: '10:00 PM - 6:00 AM'
-      }
-    };
-    return styles[shift] || styles.morning;
+    toast.success('Invite code copied!');
   };
 
   const isToday = (dateStr) => {
@@ -102,23 +107,21 @@ export default function Schedule() {
     return dateStr === today;
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full">
-      </motion.div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full">
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6 max-w-4xl">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
 
-      {/* Header */}
       <motion.div {...fadeUp} className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
@@ -169,7 +172,6 @@ export default function Schedule() {
         </div>
       </motion.div>
 
-      {/* Members Warning */}
       {membersCount <= 1 && (
         <motion.div
           {...fadeUp}
@@ -209,7 +211,6 @@ export default function Schedule() {
         </motion.div>
       )}
 
-      {/* No Schedule */}
       {!schedule ? (
         <motion.div
           {...fadeUp}
@@ -217,8 +218,8 @@ export default function Schedule() {
           <motion.div
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="text-6xl mb-4">
-            📅
+            className="flex justify-center mb-4">
+            <FiCalendar size={60} className="text-gray-400 dark:text-gray-500" />
           </motion.div>
           <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
             No schedule yet
@@ -228,8 +229,8 @@ export default function Schedule() {
           </p>
           <p className="text-gray-400 dark:text-gray-500 text-xs mb-6">
             {membersCount <= 1
-              ? '⚠️ Add more members for better shift distribution'
-              : `✅ ${membersCount} members ready for scheduling`
+              ? 'Add more members for better shift distribution'
+              : `${membersCount} members ready for scheduling`
             }
           </p>
           <motion.button
@@ -237,13 +238,13 @@ export default function Schedule() {
             whileTap={{ scale: 0.95 }}
             onClick={generateSchedule}
             disabled={generating}
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-3 rounded-xl font-medium shadow-md hover:shadow-lg disabled:opacity-50">
-            {generating ? 'Generating...' : '🤖 Generate Smart Schedule'}
+            className="flex items-center justify-center mx-auto gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-3 rounded-xl font-medium shadow-md hover:shadow-lg disabled:opacity-50">
+            <FiCpu size={18} />
+            {generating ? 'Generating...' : 'Generate Smart Schedule'}
           </motion.button>
         </motion.div>
       ) : (
         <motion.div {...fadeUp} className="space-y-4">
-          {/* Week Info */}
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-5 text-white">
             <p className="text-indigo-100 text-sm">Week of</p>
             <p className="text-xl font-bold mt-1">
@@ -268,7 +269,6 @@ export default function Schedule() {
             </div>
           </div>
 
-          {/* Day Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2">
             {schedule.schedule?.map((day, i) => (
               <motion.button
@@ -294,7 +294,6 @@ export default function Schedule() {
             ))}
           </div>
 
-          {/* Selected Day Shifts */}
           <AnimatePresence mode="wait">
             {schedule.schedule?.[activeDay] && (
               <motion.div
@@ -320,25 +319,26 @@ export default function Schedule() {
                 </div>
 
                 {schedule.schedule[activeDay].shifts?.map((shift, j) => {
-                  const style = getShiftStyle(shift.shift);
+                  const details = getShiftDetails(shift.shift);
+                  const { IconComponent } = details;
                   return (
                     <motion.div
                       key={j}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: j * 0.1 }}
-                      className={`rounded-2xl border p-4 ${style.bg} ${style.border}`}>
+                      className={`rounded-2xl border p-4 ${details.bg} ${details.border}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-white/50 dark:bg-gray-800/30`}>
-                            {style.icon}
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white/50 dark:bg-gray-800/30`}>
+                            {IconComponent && <IconComponent size={24} className={details.iconColor} />}
                           </div>
                           <div>
-                            <p className={`font-bold ${style.text} capitalize`}>
+                            <p className={`font-bold ${details.text} capitalize`}>
                               {shift.shift} Shift
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              ⏰ {style.time}
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5">
+                              <FiClock size={12} /> {details.time}
                             </p>
                           </div>
                         </div>
@@ -350,7 +350,7 @@ export default function Schedule() {
                                 {shift.assignedTo.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div>
-                                <p className={`font-semibold text-sm ${style.text}`}>
+                                <p className={`font-semibold text-sm ${details.text}`}>
                                   {shift.assignedTo.name || 'Member'}
                                 </p>
                                 {shift.assignedTo.relationship && (
@@ -361,19 +361,18 @@ export default function Schedule() {
                               </div>
                             </div>
                             {shift.autoAssigned && (
-                              <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 block">
-                                🤖 Auto assigned
+                              <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center justify-end gap-1.5">
+                                <FiCpu size={12} /> Auto assigned
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg">
-                            ⚠️ Unassigned
+                          <span className="flex items-center gap-2 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg">
+                            <FiAlertTriangle size={14} /> Unassigned
                           </span>
                         )}
                       </div>
 
-                      {/* Tasks */}
                       {shift.tasks && shift.tasks.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-white/30 dark:border-gray-700/30">
                           <div className="flex flex-wrap gap-2">
@@ -393,13 +392,12 @@ export default function Schedule() {
             )}
           </AnimatePresence>
 
-          {/* All Days Overview */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
-            <h3 className="font-bold text-gray-800 dark:text-white mb-4">
-              📊 Week Overview
+            <h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+              <FiCalendar /> Week Overview
             </h3>
             <div className="space-y-2">
               {schedule.schedule?.map((day, i) => (
@@ -434,12 +432,13 @@ export default function Schedule() {
                   </div>
                   <div className="flex gap-1">
                     {day.shifts?.map((shift, j) => {
-                      const style = getShiftStyle(shift.shift);
+                      const details = getShiftDetails(shift.shift);
+                      const { IconComponent } = details;
                       return (
-                        <span key={j} title={shift.shift}
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${style.bg} border ${style.border}`}>
-                          {style.icon}
-                        </span>
+                        <div key={j} title={shift.shift}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${details.bg} border ${details.border}`}>
+                          {IconComponent && <IconComponent size={14} className={details.iconColor} />}
+                        </div>
                       );
                     })}
                   </div>

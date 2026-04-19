@@ -29,12 +29,21 @@ export default function Dashboard() {
   const [timeLeft, setTimeLeft] = useState("---");
   const [nextMed, setNextMed] = useState(null);
 
-  // 🛡️ REDIRECT: Circle එකක් නැතිනම් Join Circle වෙත යොමු කිරීම
+  // 🛡️ FIXED REDIRECT LOGIC: 
+  // authLoading අවසන් වී, user සිටින නමුත්, තත්පර කිහිපයකට පසුවත් currentCircle එක null නම් පමණක් Redirect වේ.
   useEffect(() => {
-    if (!authLoading && !currentCircle) {
-      navigate('/join-circle');
+    if (!authLoading) {
+      if (user && !currentCircle) {
+        // ඉතාමත් කුඩා ප්‍රමාදයක් ලබා දීම (Race condition වැළැක්වීමට)
+        const timeout = setTimeout(() => {
+          if (!currentCircle) {
+            navigate('/join-circle');
+          }
+        }, 1500);
+        return () => clearTimeout(timeout);
+      }
     }
-  }, [currentCircle, authLoading, navigate]);
+  }, [currentCircle, authLoading, user, navigate]);
 
   useEffect(() => {
     if (currentCircle?._id) loadDashboardData();
@@ -75,13 +84,13 @@ export default function Dashboard() {
         circleId: currentCircle._id 
       });
       toast.success('Medicine marked as taken');
-      loadDashboardData(); // UI එක update කිරීමට දත්ත නැවත load කිරීම
+      loadDashboardData(); 
     } catch (error) { 
       toast.error('Failed to update. Please try again.'); 
     }
   };
 
-  // ⏲️ TIMER LOGIC: මීළඟ බෙහෙත් වේලාව ගණනය කිරීම
+  // ⏲️ TIMER & PROACTIVE REMINDER LOGIC
   useEffect(() => {
     if (!data.medicines || data.medicines.length === 0) {
         setTimeLeft("All clear");
@@ -101,11 +110,35 @@ export default function Dashboard() {
       });
 
       if (upcoming) {
+        setNextMed(upcoming);
         const diff = upcoming.time - now;
+        
+        // --- 15 MINUTE PROACTIVE ALERT ---
+        const minsLeft = Math.floor(diff / 60000);
+        const toastId = `reminder-${upcoming._id}-${upcoming.timeStr}`;
+        if (minsLeft === 15 && !toast.isActive(toastId)) {
+            toast.custom((t) => (
+                <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-slate-800 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-indigo-500/20 p-4 border-l-4 border-indigo-500`}>
+                    <div className="flex-1 w-0 p-1">
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0 pt-0.5">
+                                <FiClock className="h-10 w-10 text-indigo-500" />
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <p className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">Medicine Reminder</p>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    Time to prepare {upcoming.name} ({upcoming.dosage}). Scheduled in 15 minutes.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ), { id: toastId, duration: 6000 });
+        }
+
         const h = Math.floor(diff / 3600000);
         const m = Math.floor((diff % 3600000) / 60000);
         const s = Math.floor((diff % 60000) / 1000);
-        setNextMed(upcoming);
         setTimeLeft(`${h}h ${m}m ${s}s`);
       } else { 
         setTimeLeft("No more today"); 
@@ -123,13 +156,10 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-full w-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-      {/* Dynamic Background Orbs */}
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full filter blur-[100px] animate-pulse"></div>
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-400/10 dark:bg-rose-600/10 rounded-full filter blur-[100px] animate-pulse delay-700"></div>
 
       <div className="relative z-10 space-y-8 max-w-7xl mx-auto">
-        
-        {/* HEADER SECTION */}
         <header className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight uppercase">
@@ -139,10 +169,10 @@ export default function Dashboard() {
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
             <div className="flex gap-2 mt-4">
-              <span className="px-3 py-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-lg text-[10px] font-bold text-slate-500 border border-white/20 uppercase">
+              <span className="px-3 py-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-lg text-[10px] font-bold text-slate-500 border border-white/20 uppercase tracking-widest">
                 <FiUsers className="inline mr-1"/> {currentCircle?.name}
               </span>
-              <span className="px-3 py-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-lg text-[10px] font-bold text-slate-500 border border-white/20 uppercase">
+              <span className="px-3 py-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-lg text-[10px] font-bold text-slate-500 border border-white/20 uppercase tracking-widest">
                 <FiHeart className="inline mr-1 text-rose-500"/> {currentCircle?.patient?.name}
               </span>
             </div>
@@ -156,7 +186,6 @@ export default function Dashboard() {
           </motion.button>
         </header>
 
-        {/* 1. UP NEXT BANNER (Screenshot Match) */}
         <section className="bg-slate-900 dark:bg-slate-800/80 rounded-[2.5rem] p-8 text-white shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 border border-white/5">
           <div className="flex items-center gap-6">
              <div className="w-16 h-16 bg-white/10 rounded-2xl backdrop-blur-md flex items-center justify-center border border-white/10">
@@ -178,7 +207,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* 2. DYNAMIC STATS GRID */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { label: 'Given Today', val: data.stats.given, icon: <FiCheckCircle />, col: 'text-emerald-500', bg: 'bg-emerald-500/10', tag: 'GIVEN TODAY' },
@@ -195,9 +223,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* 3. QUICK ACTIONS & TODAY'S SCHEDULE */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Quick Action Grid */}
             <section className="bg-white/60 dark:bg-slate-800/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/20 shadow-xl">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase tracking-widest flex items-center gap-2 mb-8">
                     <FiActivity size={18} className="text-indigo-500" /> Quick Actions
@@ -221,7 +247,6 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            {/* Today's Schedule with Intake Status */}
             <section className="bg-white/60 dark:bg-slate-800/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/20 shadow-xl overflow-hidden">
                 <div className="flex justify-between items-center mb-8">
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase tracking-widest flex items-center gap-2">

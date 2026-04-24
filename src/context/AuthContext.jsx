@@ -4,9 +4,15 @@ import API from '../services/api';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true); // මුලින්ම loading true වේ
-    const [currentCircle, setCurrentCircle] = useState(null);
+    const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('user');
+        return saved && saved !== "undefined" ? JSON.parse(saved) : null;
+    });
+    const [currentCircle, setCurrentCircle] = useState(() => {
+        const saved = localStorage.getItem('currentCircle');
+        return saved && saved !== "undefined" ? JSON.parse(saved) : null;
+    });
+    const [loading, setLoading] = useState(true);
 
     const refreshAuth = async () => {
         const token = localStorage.getItem('token');
@@ -16,22 +22,14 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            // 1. User Profile ලබා ගැනීම
             const res = await API.get('/auth/profile'); 
             const userData = res.data.data || res.data;
             setUser(userData);
             localStorage.setItem('user', JSON.stringify(userData));
 
-            // 2. Circle විස්තර ලබා ගැනීම
-            // මෙහිදී මුලින්ම බලනවා කලින් තෝරාගත් circle එකක් තියෙනවද කියලා
-            let circleId = localStorage.getItem('currentCircleId');
-            
-            // නැත්නම් user ගේ පළමු circle එක ගන්නවා
-            if (!circleId && userData.circles && userData.circles.length > 0) {
-                circleId = userData.circles[0];
-            }
-
-            if (circleId) {
+            // Circle එක අලුතින්ම Sync කිරීම
+            if (userData.circles && userData.circles.length > 0) {
+                const circleId = localStorage.getItem('currentCircleId') || userData.circles[0];
                 const circleRes = await API.get(`/circles/${circleId}`);
                 const circleData = circleRes.data.data || circleRes.data;
                 setCurrentCircle(circleData);
@@ -40,9 +38,12 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error("Auth Sync Error:", error);
-            if (error.response?.status === 401) logout();
+            if (error.response?.status === 401) {
+                localStorage.clear();
+                setUser(null);
+                setCurrentCircle(null);
+            }
         } finally {
-            // සියලුම දත්ත load වූ පසු පමණක් loading false කරයි
             setLoading(false);
         }
     };
@@ -59,9 +60,9 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        localStorage.clear();
         setUser(null);
         setCurrentCircle(null);
-        localStorage.clear();
         window.location.href = '/login';
     };
 
